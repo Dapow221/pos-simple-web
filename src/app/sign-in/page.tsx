@@ -3,37 +3,50 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Keypad } from "@/components/keypad";
-import { STAFF } from "@/lib/catalog";
-import { usePosStore } from "@/store/pos";
+import { ApiError, login } from "@/lib/api";
+import { pinPassword, STAFF } from "@/lib/catalog";
+import { useAuthStore } from "@/store/auth";
 
 const PIN_LENGTH = 4;
 
 export default function SignInPage() {
   const router = useRouter();
-  const signIn = usePosStore((state) => state.signIn);
+  const setSession = useAuthStore((state) => state.setSession);
   const [staffId, setStaffId] = useState(STAFF[0].id);
   const [pin, setPin] = useState("");
-  const [wrongPin, setWrongPin] = useState(false);
+  const [status, setStatus] = useState<"idle" | "checking" | "error">("idle");
+  const [errorText, setErrorText] = useState("");
 
   const staff = STAFF.find((member) => member.id === staffId) ?? STAFF[0];
 
   const handleDigit = (digit: string) => {
-    if (pin.length >= PIN_LENGTH) return;
+    if (pin.length >= PIN_LENGTH || status === "checking") return;
     const nextPin = pin + digit;
     setPin(nextPin);
-    setWrongPin(false);
-    if (nextPin.length < PIN_LENGTH) return;
-    if (nextPin === staff.pin) {
-      signIn(staff.id);
+    setStatus("idle");
+    if (nextPin.length === PIN_LENGTH) void unlock(nextPin);
+  };
+
+  const unlock = async (enteredPin: string) => {
+    setStatus("checking");
+    try {
+      const session = await login(staff.email, pinPassword(staff, enteredPin));
+      setSession(session.user, session.accessToken);
       router.push("/register");
-    } else {
-      setWrongPin(true);
+    } catch (error) {
+      setErrorText(
+        error instanceof ApiError && error.status === 429
+          ? "TOO MANY TRIES · WAIT A MINUTE"
+          : "WRONG PIN · TRY AGAIN",
+      );
+      setStatus("error");
       setTimeout(() => setPin(""), 450);
     }
   };
 
   const handleAction = (action: string) => {
-    setWrongPin(false);
+    if (status === "checking") return;
+    setStatus("idle");
     setPin(action === "Clear" ? "" : pin.slice(0, -1));
   };
 
@@ -58,7 +71,7 @@ export default function SignInPage() {
                 onClick={() => {
                   setStaffId(member.id);
                   setPin("");
-                  setWrongPin(false);
+                  setStatus("idle");
                 }}
                 className={`flex items-center gap-3 rounded-full border py-2 pl-2 pr-6 transition-colors ${
                   selected
@@ -87,7 +100,10 @@ export default function SignInPage() {
         <div className="mt-9 flex items-center justify-between">
           <p className="mono-label">
             {staff.shortName.toUpperCase()} · ENTER PIN
-            {wrongPin && <span className="ml-3 text-accent-bright">WRONG PIN · TRY AGAIN</span>}
+            {status === "checking" && <span className="ml-3 text-accent">UNLOCKING…</span>}
+            {status === "error" && (
+              <span className="ml-3 text-accent-bright">{errorText}</span>
+            )}
           </p>
           <div className="flex gap-3">
             {Array.from({ length: PIN_LENGTH }, (_, index) => (

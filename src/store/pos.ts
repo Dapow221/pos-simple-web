@@ -1,59 +1,59 @@
 import { create } from "zustand";
+import type { Product } from "@/lib/api";
 
 export interface CartLine {
-  itemId: string;
+  productId: string;
+  sku: string;
+  name: string;
+  price: number;
+  stock: number;
   qty: number;
 }
 
 export type OrderType = "dine-in" | "takeaway";
 
-const DEMO_ORDER: CartLine[] = [
-  { itemId: "caffe-latte", qty: 2 },
-  { itemId: "v60", qty: 1 },
-  { itemId: "butter-croissant", qty: 1 },
-];
-
 interface PosState {
-  staffId: string;
   orderType: OrderType;
   lines: CartLine[];
-  signIn: (staffId: string) => void;
   setOrderType: (orderType: OrderType) => void;
-  addItem: (itemId: string) => void;
-  adjustQty: (itemId: string, delta: number) => void;
-  removeLine: (itemId: string) => void;
+  addItem: (product: Product) => void;
+  adjustQty: (productId: string, delta: number) => void;
+  removeLine: (productId: string) => void;
   clearOrder: () => void;
 }
 
 export const usePosStore = create<PosState>((set) => ({
-  staffId: "anya",
   orderType: "dine-in",
-  lines: DEMO_ORDER,
-  signIn: (staffId) => set({ staffId }),
+  lines: [],
   setOrderType: (orderType) => set({ orderType }),
-  addItem: (itemId) =>
+  addItem: (product) =>
     set((state) => {
-      const existing = state.lines.find((line) => line.itemId === itemId);
+      const existing = state.lines.find((line) => line.productId === product.id);
       if (existing) {
         return {
           lines: state.lines.map((line) =>
-            line.itemId === itemId ? { ...line, qty: line.qty + 1 } : line,
+            line.productId === product.id
+              ? { ...line, qty: Math.min(line.qty + 1, line.stock) }
+              : line,
           ),
         };
       }
-      return { lines: [...state.lines, { itemId, qty: 1 }] };
+      const { id, ...snapshot } = product;
+      return { lines: [...state.lines, { ...snapshot, productId: id, qty: 1 }] };
     }),
-  adjustQty: (itemId, delta) =>
+  adjustQty: (productId, delta) =>
     set((state) => ({
       lines: state.lines
         .map((line) =>
-          line.itemId === itemId ? { ...line, qty: line.qty + delta } : line,
+          line.productId === productId
+            ? { ...line, qty: Math.min(line.qty + delta, line.stock) }
+            : line,
         )
         .filter((line) => line.qty > 0),
     })),
-  removeLine: (itemId) =>
+  removeLine: (productId) =>
     set((state) => ({
-      lines: state.lines.filter((line) => line.itemId !== itemId),
+      lines: state.lines.filter((line) => line.productId !== productId),
     })),
   clearOrder: () => set({ lines: [] }),
 }));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MENU_BY_ID, ORDER_NUMBER } from "@/lib/catalog";
+import { ORDER_NUMBER } from "@/lib/catalog";
 import { orderTotals, rupiah } from "@/lib/money";
 import { usePosStore, type OrderType } from "@/store/pos";
 
@@ -14,7 +14,7 @@ export function OrderTicket() {
   const router = useRouter();
   const { orderType, lines, setOrderType, adjustQty, removeLine, clearOrder } =
     usePosStore();
-  const { subtotal, tax, total } = orderTotals(lines);
+  const { subtotal, tax, rounding, grandTotal } = orderTotals(lines);
   const itemCount = lines.reduce((sum, line) => sum + line.qty, 0);
 
   return (
@@ -41,54 +41,50 @@ export function OrderTicket() {
       </div>
 
       <div className="mt-4 min-h-0 flex-1 divide-y divide-line overflow-y-auto border-t-2 border-line">
-        {lines.map((line) => {
-          const item = MENU_BY_ID.get(line.itemId);
-          if (!item) return null;
-          return (
-            <div key={line.itemId} className="py-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[15px] font-medium">{item.name}</p>
-                <p className="font-mono text-sm">{rupiah(item.price * line.qty)}</p>
-              </div>
-              <div className="mt-0.5 flex items-center justify-between gap-3">
-                <p className="text-[13px] text-muted">
-                  {item.note} · {rupiah(item.price)}
-                </p>
-                <div className="flex items-center gap-4">
+        {lines.map((line) => (
+          <div key={line.productId} className="py-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[15px] font-medium">{line.name}</p>
+              <p className="font-mono text-sm">{rupiah(line.price * line.qty)}</p>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between gap-3">
+              <p className="text-[13px] text-muted">
+                {line.sku} · {rupiah(line.price)}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => removeLine(line.productId)}
+                  className="mono-label transition-colors hover:text-ink"
+                >
+                  Remove
+                </button>
+                <div className="flex items-center rounded-full border border-line bg-white">
                   <button
                     type="button"
-                    onClick={() => removeLine(line.itemId)}
-                    className="mono-label transition-colors hover:text-ink"
+                    onClick={() => adjustQty(line.productId, -1)}
+                    className="px-3 py-1 text-muted hover:text-ink"
+                    aria-label={`Remove one ${line.name}`}
                   >
-                    Remove
+                    −
                   </button>
-                  <div className="flex items-center rounded-full border border-line bg-white">
-                    <button
-                      type="button"
-                      onClick={() => adjustQty(line.itemId, -1)}
-                      className="px-3 py-1 text-muted hover:text-ink"
-                      aria-label={`Remove one ${item.name}`}
-                    >
-                      −
-                    </button>
-                    <span className="min-w-6 text-center text-sm">{line.qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => adjustQty(line.itemId, 1)}
-                      className="px-3 py-1 text-muted hover:text-ink"
-                      aria-label={`Add one ${item.name}`}
-                    >
-                      +
-                    </button>
-                  </div>
+                  <span className="min-w-6 text-center text-sm">{line.qty}</span>
+                  <button
+                    type="button"
+                    onClick={() => adjustQty(line.productId, 1)}
+                    className="px-3 py-1 text-muted hover:text-ink"
+                    aria-label={`Add one ${line.name}`}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
         {lines.length === 0 && (
           <p className="py-10 text-center text-sm text-muted">
-            Ticket is empty — tap the menu to add drinks.
+            Ticket is empty — tap the menu to add items.
           </p>
         )}
       </div>
@@ -102,10 +98,16 @@ export function OrderTicket() {
           <span>Tax &amp; service · 11%</span>
           <span className="font-mono">{rupiah(tax)}</span>
         </div>
+        {rounding !== 0 && (
+          <div className="flex justify-between text-muted">
+            <span>Rounding</span>
+            <span className="font-mono">{rupiah(rounding)}</span>
+          </div>
+        )}
       </div>
       <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
         <span className="font-serif text-[22px] font-semibold">Total</span>
-        <span className="font-mono text-xl font-medium">{rupiah(total)}</span>
+        <span className="font-mono text-xl font-medium">{rupiah(grandTotal)}</span>
       </div>
 
       <div className="mt-4 flex gap-3">
@@ -123,7 +125,7 @@ export function OrderTicket() {
           onClick={() => router.push("/payment")}
           className="flex-1 rounded-[10px] bg-ink text-sm font-semibold text-cream transition-opacity disabled:opacity-40"
         >
-          Charge · {rupiah(total)}
+          Charge · {rupiah(grandTotal)}
         </button>
       </div>
     </aside>
