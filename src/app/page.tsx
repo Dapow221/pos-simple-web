@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export const unstable_instant = { prefetch: "static" };
@@ -41,9 +42,13 @@ export default function LandingPage() {
     <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col px-5 py-8 sm:px-10 sm:py-12">
       <header className="flex flex-col gap-6 border-b border-line pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4 sm:gap-5">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-ink font-serif text-2xl text-cream sm:size-14 sm:text-3xl">
-            R
-          </span>
+          <Image
+            src="/logo.png"
+            alt="Ratio Coffee cat logo"
+            width={45}
+            height={56}
+            className="h-12 w-auto sm:h-14"
+          />
           <div>
             <h1 className="font-serif text-[32px] leading-none sm:text-[44px]">Ratio Coffee</h1>
             <p className="mono-label mt-2">POINT OF SALE · DEMO TERMINAL</p>

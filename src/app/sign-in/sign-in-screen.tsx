@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Keypad } from "@/components/keypad";
@@ -152,6 +153,13 @@ function BrandPanel() {
       </div>
 
       <div className="mt-24">
+        <Image
+          src="/logo-cream.png"
+          alt="Ratio Coffee cat logo"
+          width={65}
+          height={80}
+          className="mb-6 h-20 w-auto"
+        />
         <h2 className="font-serif text-[64px] leading-[1.08]">
           Ratio
           <br />

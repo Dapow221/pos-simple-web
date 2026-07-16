@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
@@ -10,9 +11,13 @@ export function PosHeader({ subtitle, children }: PosHeaderProps) {
   return (
     <header className="flex items-center justify-between gap-3 border-b border-line bg-cream px-4 py-3 sm:px-6">
       <Link href="/" className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-ink font-serif text-lg text-cream">
-          R
-        </span>
+        <Image
+          src="/logo.png"
+          alt="Ratio Coffee cat logo"
+          width={29}
+          height={36}
+          className="h-9 w-auto"
+        />
         <span>
           <span className="block font-serif text-lg font-semibold leading-tight">
             Ratio Coffee
