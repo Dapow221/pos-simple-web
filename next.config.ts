@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:3000";
 
 const nextConfig: NextConfig = {
+  // Static shells + validated instant client navigations (unstable_instant).
+  cacheComponents: true,
   async rewrites() {
     return [
       // Auth keeps its original path so the refresh cookie (Path=/v1/auth)

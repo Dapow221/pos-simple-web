@@ -22,7 +22,7 @@ const shippori = Shippori_Mincho({
 export const metadata: Metadata = {
   title: "Ratio Coffee — POS",
   description:
-    "Point of sale for the bar. A register that reads like a menu card.",
+    "A point-of-sale demo for a coffee bar — register, payment, and a live sales dashboard against a real API.",
 };
 
 export default function RootLayout({

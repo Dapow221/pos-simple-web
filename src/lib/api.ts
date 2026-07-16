@@ -46,6 +46,58 @@ export interface Receipt {
   change: number;
 }
 
+export interface ReportRange {
+  from: string;
+  to: string;
+}
+
+export interface SalesSummary {
+  transactions: number;
+  grossRevenue: number;
+  itemsSold: number;
+  discountTotal: number;
+  taxTotal: number;
+  averageTicket: number;
+}
+
+export interface DailySales {
+  date: string;
+  transactions: number;
+  revenue: number;
+}
+
+export interface TopProduct {
+  productId: string;
+  sku: string;
+  name: string;
+  quantitySold: number;
+  revenue: number;
+}
+
+export type PaymentMethod = "cash" | "card" | "qris";
+
+export interface PaymentMethodStat {
+  method: PaymentMethod;
+  payments: number;
+  amount: number;
+}
+
+export interface LowStockProduct {
+  id: string;
+  sku: string;
+  name: string;
+  stock: number;
+}
+
+export interface RecentTransaction {
+  id: string;
+  receiptNo: string;
+  cashierId: string;
+  grandTotal: number;
+  itemCount: number;
+  createdAt: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -117,6 +169,31 @@ export async function getProducts(): Promise<Product[]> {
   if (!response.ok) await parseError(response);
   return (await response.json()).data;
 }
+
+async function getReport<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+  const query = new URLSearchParams(params).toString();
+  const response = await authFetch(`/reports/${path}${query ? `?${query}` : ""}`);
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export const getSummary = (range: ReportRange) =>
+  getReport<SalesSummary>("summary", { ...range });
+
+export const getSalesByDay = (range: ReportRange) =>
+  getReport<DailySales[]>("sales-by-day", { ...range });
+
+export const getTopProducts = (range: ReportRange, limit = 8) =>
+  getReport<TopProduct[]>("top-products", { ...range, limit: String(limit) });
+
+export const getPaymentMethods = (range: ReportRange) =>
+  getReport<PaymentMethodStat[]>("payment-methods", { ...range });
+
+export const getLowStock = (threshold = 10) =>
+  getReport<LowStockProduct[]>("low-stock", { threshold: String(threshold) });
+
+export const getRecentTransactions = (limit = 8) =>
+  getReport<RecentTransaction[]>("recent-transactions", { limit: String(limit) });
 
 export async function checkout(
   payload: CheckoutPayload,

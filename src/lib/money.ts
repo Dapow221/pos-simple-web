@@ -6,6 +6,15 @@ export function rupiah(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
+// "Rp 6,4 jt" for stat tiles; full value below one million.
+export function rupiahCompact(amount: number): string {
+  if (Math.abs(amount) < 1_000_000) return rupiah(amount);
+  return `Rp ${new Intl.NumberFormat("id-ID", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount)}`;
+}
+
 // Mirrors the backend: subtotal -> 11% tax -> rounded to the nearest Rp 100.
 export function orderTotals(lines: CartLine[]) {
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.qty, 0);

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ORDER_NUMBER } from "@/lib/catalog";
+import { cn } from "@/lib/cn";
 import { orderTotals, rupiah } from "@/lib/money";
 import { usePosStore, type OrderType } from "@/store/pos";
 
@@ -10,7 +11,12 @@ const ORDER_TYPES: { id: OrderType; label: string }[] = [
   { id: "takeaway", label: "Takeaway" },
 ];
 
-export function OrderTicket() {
+interface OrderTicketProps {
+  className?: string;
+  onClose?: () => void;
+}
+
+export function OrderTicket({ className, onClose }: OrderTicketProps) {
   const router = useRouter();
   const { orderType, lines, setOrderType, adjustQty, removeLine, clearOrder } =
     usePosStore();
@@ -18,25 +24,37 @@ export function OrderTicket() {
   const itemCount = lines.reduce((sum, line) => sum + line.qty, 0);
 
   return (
-    <aside className="flex min-h-0 flex-col border-l border-line bg-cream px-5 py-5">
-      <div className="flex items-start justify-between">
+    <aside className={cn("flex min-h-0 flex-col bg-cream px-5 py-5", className)}>
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-serif text-[22px] font-semibold">Order {ORDER_NUMBER}</h2>
           <p className="mono-label mt-1">{itemCount} ITEMS · OPEN</p>
         </div>
-        <div className="flex rounded-full border border-line bg-white p-1">
-          {ORDER_TYPES.map((type) => (
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-full border border-line bg-white p-1">
+            {ORDER_TYPES.map((type) => (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => setOrderType(type.id)}
+                className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
+                  orderType === type.id ? "bg-ink text-cream" : "text-muted hover:text-ink"
+                }`}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+          {onClose && (
             <button
-              key={type.id}
               type="button"
-              onClick={() => setOrderType(type.id)}
-              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
-                orderType === type.id ? "bg-ink text-cream" : "text-muted hover:text-ink"
-              }`}
+              onClick={onClose}
+              aria-label="Close ticket"
+              className="flex size-9 items-center justify-center rounded-full border border-line bg-white text-muted transition-colors hover:text-ink"
             >
-              {type.label}
+              ✕
             </button>
-          ))}
+          )}
         </div>
       </div>
 

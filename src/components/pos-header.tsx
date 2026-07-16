@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 
 interface PosHeaderProps {
   subtitle: string;
@@ -7,7 +8,7 @@ interface PosHeaderProps {
 
 export function PosHeader({ subtitle, children }: PosHeaderProps) {
   return (
-    <header className="flex items-center justify-between border-b border-line bg-cream px-6 py-3">
+    <header className="flex items-center justify-between gap-3 border-b border-line bg-cream px-4 py-3 sm:px-6">
       <Link href="/" className="flex items-center gap-3">
         <span className="flex size-9 items-center justify-center rounded-lg bg-ink font-serif text-lg text-cream">
           R
@@ -19,7 +20,7 @@ export function PosHeader({ subtitle, children }: PosHeaderProps) {
           <span className="mono-label block text-[9px]">{subtitle}</span>
         </span>
       </Link>
-      <div className="flex items-center gap-8">{children}</div>
+      <div className="flex items-center gap-4 sm:gap-8">{children}</div>
     </header>
   );
 }
@@ -27,11 +28,12 @@ export function PosHeader({ subtitle, children }: PosHeaderProps) {
 interface HeaderMetaProps {
   label: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function HeaderMeta({ label, children }: HeaderMetaProps) {
+export function HeaderMeta({ label, children, className }: HeaderMetaProps) {
   return (
-    <div>
+    <div className={cn(className)}>
       <span className="mono-label block text-[9px]">{label}</span>
       <span className="block text-sm font-medium">{children}</span>
     </div>
