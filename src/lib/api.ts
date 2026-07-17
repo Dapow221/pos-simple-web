@@ -77,7 +77,8 @@ export interface TopProduct {
 export type PaymentMethod = "cash" | "card" | "qris";
 
 export interface PaymentMethodStat {
-  method: PaymentMethod;
+  // cash/card/qris from the counter, midtrans/xendit from the gateway.
+  method: string;
   payments: number;
   amount: number;
 }
@@ -96,6 +97,55 @@ export interface RecentTransaction {
   grandTotal: number;
   itemCount: number;
   createdAt: string;
+}
+
+export interface TransactionRow {
+  id: string;
+  receiptNo: string;
+  cashierName: string | null;
+  grandTotal: number;
+  itemCount: number;
+  methods: string[];
+  createdAt: string;
+}
+
+export interface StaffUser {
+  id: string;
+  fullName: string;
+  role: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  hasPin: boolean;
+  createdAt: string;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  fullName: string;
+  password: string;
+  role: "cashier" | "admin";
+  pin?: string;
+}
+
+export type GatewayProvider = "midtrans" | "xendit";
+export type GatewayStatus = "pending" | "paid" | "failed" | "expired";
+
+export interface GatewayPayment {
+  id: string;
+  provider: GatewayProvider;
+  status: GatewayStatus;
+  amount: number;
+  paymentUrl: string | null;
+  providerRef: string | null;
+  externalRef: string;
+  transactionId: string | null;
+  createdAt: string;
+  paidAt: string | null;
 }
 
 export class ApiError extends Error {
@@ -138,6 +188,23 @@ export async function refreshSession(): Promise<LoginResponse | null> {
 
 export async function logout(): Promise<void> {
   await fetch(`${AUTH_BASE}/logout`, { method: "POST" });
+}
+
+/** The lock screen's staff picker — public, shown before anyone signs in. */
+export async function getStaffWithPin(): Promise<StaffUser[]> {
+  const response = await fetch(`${API_BASE}/users/with-pin`);
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function pinLogin(userId: string, pin: string): Promise<LoginResponse> {
+  const response = await fetch(`${AUTH_BASE}/pin-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, pin }),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
 }
 
 async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -194,6 +261,106 @@ export const getLowStock = (threshold = 10) =>
 
 export const getRecentTransactions = (limit = 8) =>
   getReport<RecentTransaction[]>("recent-transactions", { limit: String(limit) });
+
+export async function getUsers(): Promise<AdminUser[]> {
+  const response = await authFetch("/users");
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
+  const response = await authFetch("/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function setUserPin(userId: string, pin: string): Promise<void> {
+  const response = await authFetch(`/users/${userId}/pin`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (!response.ok) await parseError(response);
+}
+
+export interface TransactionPage {
+  rows: TransactionRow[];
+  total: number;
+}
+
+export interface TransactionFilters {
+  /** Inclusive store-time dates, YYYY-MM-DD. */
+  from?: string;
+  to?: string;
+  cashierId?: string;
+  /** Substring match on the receipt number. */
+  receipt?: string;
+}
+
+export interface ReportCashier {
+  id: string;
+  fullName: string;
+}
+
+/** One page of the dashboard's transaction log, newest first. */
+export async function getTransactions(
+  limit: number,
+  offset: number,
+  filters: TransactionFilters = {},
+): Promise<TransactionPage> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  const response = await authFetch(`/reports/transactions?${params}`);
+  if (!response.ok) await parseError(response);
+  const body = await response.json();
+  return { rows: body.data, total: body.meta.total };
+}
+
+/** Everyone who has rung a sale — options for the cashier filter. */
+export async function getReportCashiers(): Promise<ReportCashier[]> {
+  const response = await authFetch("/reports/cashiers");
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function createGatewayPayment(
+  payload: {
+    provider: GatewayProvider;
+    items: { productId: string; quantity: number }[];
+    customerEmail?: string;
+  },
+  idempotencyKey: string,
+): Promise<GatewayPayment> {
+  const response = await authFetch("/payments", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function getGatewayPayment(id: string): Promise<GatewayPayment> {
+  const response = await authFetch(`/payments/${id}`);
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+/** Dev-only helper: the backend hides this endpoint outside development. */
+export async function simulateGatewayPaid(id: string): Promise<GatewayPayment> {
+  const response = await authFetch(`/payments/${id}/simulate`, { method: "POST" });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
 
 export async function checkout(
   payload: CheckoutPayload,

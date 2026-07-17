@@ -7,7 +7,6 @@ import { HeaderMeta, PosHeader, StaffBadge } from "@/components/pos-header";
 import {
   getLowStock,
   getPaymentMethods,
-  getRecentTransactions,
   getSalesByDay,
   getSummary,
   getTopProducts,
@@ -15,7 +14,6 @@ import {
   type DailySales,
   type LowStockProduct,
   type PaymentMethodStat,
-  type RecentTransaction,
   type ReportRange,
   type SalesSummary,
   type TopProduct,
@@ -29,10 +27,10 @@ import {
   Card,
   DashboardSkeleton,
   KpiRow,
+  LatestTransactionsCard,
   LowStockList,
   ManagerOnlyNotice,
   PaymentMethodBars,
-  RecentSalesList,
   TopProductsList,
 } from "./widgets";
 
@@ -48,7 +46,6 @@ interface DashboardData {
   topProducts: TopProduct[];
   methods: PaymentMethodStat[];
   lowStock: LowStockProduct[];
-  recent: RecentTransaction[];
 }
 
 // Report days are bucketed in the shop's timezone (Asia/Jakarta), so the
@@ -93,14 +90,13 @@ export function DashboardScreen() {
       getTopProducts(range),
       getPaymentMethods(range),
       getLowStock(),
-      getRecentTransactions(),
     ])
-      .then(([summary, daily, topProducts, methods, lowStock, recent]) => {
+      .then(([summary, daily, topProducts, methods, lowStock]) => {
         if (cancelled) return;
         setSnapshot({
           stamp,
           range,
-          data: { summary, daily, topProducts, methods, lowStock, recent },
+          data: { summary, daily, topProducts, methods, lowStock },
         });
       })
       .catch((cause: Error) => {
@@ -134,6 +130,14 @@ export function DashboardScreen() {
             name={user?.fullName ?? "—"}
           />
         </HeaderMeta>
+        {user?.permissions.includes("users:manage") && (
+          <Link
+            href="/staff"
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-muted sm:px-6"
+          >
+            Staff
+          </Link>
+        )}
         <Link
           href="/register"
           className="rounded-full border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-muted sm:px-6"
@@ -204,7 +208,9 @@ export function DashboardScreen() {
               >
                 <KpiRow summary={data.summary} />
 
-                <div className="grid items-start gap-4 lg:grid-cols-3">
+                {/* No items-start here: both cards stretch to the same height,
+                    and the chart grows to fill its card. */}
+                <div className="grid gap-4 lg:grid-cols-3">
                   <Card
                     title="Revenue by day"
                     meta={range ? `${range.from} → ${range.to} · WIB` : undefined}
@@ -217,17 +223,16 @@ export function DashboardScreen() {
                   </Card>
                 </div>
 
-                <div className="grid items-start gap-4 lg:grid-cols-3">
+                <div className="grid items-start gap-4 lg:grid-cols-2">
                   <Card title="Best sellers" meta="BY REVENUE">
                     <TopProductsList products={data.topProducts} />
-                  </Card>
-                  <Card title="Latest transactions" meta="LIVE FEED">
-                    <RecentSalesList transactions={data.recent} />
                   </Card>
                   <Card title="Running low" meta="RESTOCK ALERTS">
                     <LowStockList items={data.lowStock} />
                   </Card>
                 </div>
+
+                <LatestTransactionsCard />
               </div>
             )}
           </>

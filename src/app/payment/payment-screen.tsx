@@ -5,18 +5,20 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Keypad } from "@/components/keypad";
 import { HeaderMeta, PosHeader, StaffBadge } from "@/components/pos-header";
-import { ApiError, checkout, type Receipt } from "@/lib/api";
+import { ApiError, checkout, type GatewayProvider, type Receipt } from "@/lib/api";
 import { ORDER_NUMBER } from "@/lib/catalog";
 import { orderTotals, quickAmounts, rupiah } from "@/lib/money";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { useAuthStore } from "@/store/auth";
 import { usePosStore } from "@/store/pos";
+import { GatewayCheckout } from "./gateway-checkout";
 
 const PAYMENT_METHODS = [
   { id: "cash", name: "Cash", note: "Rupiah · drawer", apiMethod: "cash" },
   { id: "qris", name: "QRIS", note: "Scan to pay", apiMethod: "qris" },
   { id: "debit", name: "Debit / Credit", note: "EDC terminal", apiMethod: "card" },
-  { id: "e-wallet", name: "E-Wallet", note: "GoPay · OVO · Dana", apiMethod: "qris" },
+  { id: "midtrans", name: "Online · Midtrans", note: "GoPay · VA · cards, on this screen", apiMethod: null },
+  { id: "xendit", name: "Online · Xendit", note: "E-wallets · invoice, on this screen", apiMethod: null },
 ] as const;
 
 export function PaymentScreen() {
@@ -33,12 +35,14 @@ export function PaymentScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [gatewayProvider, setGatewayProvider] = useState<GatewayProvider | null>(null);
 
   const method = PAYMENT_METHODS.find((entry) => entry.id === methodId) ?? PAYMENT_METHODS[0];
   const { grandTotal } = orderTotals(lines);
   const itemCount = lines.reduce((sum, line) => sum + line.qty, 0);
   const change = tendered - grandTotal;
   const isCash = method.id === "cash";
+  const isGateway = method.apiMethod === null;
   const canComplete =
     lines.length > 0 && (!isCash || change >= 0) && !submitting && !receipt;
   const canViewReports = user?.permissions.includes("reports:read") ?? false;
@@ -55,6 +59,12 @@ export function PaymentScreen() {
   };
 
   const completeOrder = async () => {
+    if (method.apiMethod === null) {
+      // Online payment: the gateway panel owns creation, polling, and receipt.
+      setSubmitError("");
+      setGatewayProvider(method.id);
+      return;
+    }
     setSubmitting(true);
     setSubmitError("");
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
@@ -83,6 +93,7 @@ export function PaymentScreen() {
     clearOrder();
     idempotencyKeyRef.current = "";
     setReceipt(null);
+    setGatewayProvider(null);
     setTendered(0);
     setSubmitError("");
     router.push("/register");
@@ -112,6 +123,14 @@ export function PaymentScreen() {
               onNewOrder={startNewOrder}
               showDashboardLink={canViewReports}
             />
+          ) : gatewayProvider ? (
+            <GatewayCheckout
+              provider={gatewayProvider}
+              items={lines.map((line) => ({ productId: line.productId, quantity: line.qty }))}
+              onNewOrder={startNewOrder}
+              onBack={() => setGatewayProvider(null)}
+              showDashboardLink={canViewReports}
+            />
           ) : (
             <div className="max-w-[760px]">
               <Link href="/register" className="mono-label transition-colors hover:text-ink">
@@ -128,8 +147,8 @@ export function PaymentScreen() {
                 <span className="font-mono text-sm font-medium">{rupiah(grandTotal)}</span>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {PAYMENT_METHODS.map((entry) => {
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                {PAYMENT_METHODS.map((entry, index) => {
                   const selected = entry.id === method.id;
                   return (
                     <button
@@ -137,6 +156,8 @@ export function PaymentScreen() {
                       type="button"
                       onClick={() => setMethodId(entry.id)}
                       className={`flex items-center gap-4 rounded-[10px] border p-4 text-left transition-colors ${
+                        index < 3 ? "sm:col-span-2" : "sm:col-span-3"
+                      } ${
                         selected
                           ? "border-[1.5px] border-accent-bright bg-tint"
                           : "border-line bg-white hover:border-muted"
@@ -163,7 +184,11 @@ export function PaymentScreen() {
                 </p>
               </div>
 
-              <div className={`mt-4 ${isCash ? "" : "pointer-events-none opacity-40"}`}>
+              <div
+                className={`mt-4 ${isGateway ? "hidden" : ""} ${
+                  isCash ? "" : "pointer-events-none opacity-40"
+                }`}
+              >
                 <div className="flex flex-wrap gap-2">
                   <QuickChip
                     active={tendered === grandTotal}
@@ -212,9 +237,11 @@ export function PaymentScreen() {
               >
                 {submitting
                   ? "Processing…"
-                  : isCash && change > 0
-                    ? `Complete · give ${rupiah(change)} change`
-                    : `Complete · ${rupiah(grandTotal)}`}
+                  : isGateway
+                    ? `Continue online · ${rupiah(grandTotal)}`
+                    : isCash && change > 0
+                      ? `Complete · give ${rupiah(change)} change`
+                      : `Complete · ${rupiah(grandTotal)}`}
               </button>
             </div>
           )}

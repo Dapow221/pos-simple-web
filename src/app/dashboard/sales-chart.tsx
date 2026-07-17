@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DailySales } from "@/lib/api";
 import { rupiah } from "@/lib/money";
 
-const HEIGHT = 240;
+const MIN_HEIGHT = 240;
 const MARGIN = { top: 14, right: 16, bottom: 26, left: 48 };
 const Y_DIVISIONS = 4;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -29,19 +29,27 @@ function shortDate(isoDate: string): string {
 
 export function SalesChart({ data }: { data: DailySales[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: MIN_HEIGHT });
   const [active, setActive] = useState<number | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    // The container is sized by the card (h-full), so the chart fills whatever
+    // height the dashboard row gives it — e.g. matching the card next to it.
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({
+        width: entry.contentRect.width,
+        height: Math.max(entry.contentRect.height, MIN_HEIGHT),
+      }),
+    );
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
 
+  const { width, height } = size;
   const innerWidth = Math.max(width - MARGIN.left - MARGIN.right, 0);
-  const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
+  const innerHeight = height - MARGIN.top - MARGIN.bottom;
   const yMax = niceMax(Math.max(...data.map((d) => d.revenue), 1));
   const xAt = (index: number) =>
     MARGIN.left + (data.length < 2 ? innerWidth / 2 : (index / (data.length - 1)) * innerWidth);
@@ -82,14 +90,14 @@ export function SalesChart({ data }: { data: DailySales[] }) {
   }
 
   return (
-    <div ref={containerRef} className="relative select-none">
+    <div ref={containerRef} className="relative h-full min-h-[240px] select-none">
       <svg
         width="100%"
-        height={HEIGHT}
+        height={height}
         role="img"
         aria-label={`Daily revenue from ${shortDate(data[0].date)} to ${shortDate(data[lastIndex].date)}. Use arrow keys to inspect days.`}
         tabIndex={0}
-        className="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent-bright"
+        className="absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent-bright"
         onPointerMove={(event) => moveActive(event.clientX)}
         onPointerLeave={() => setActive(null)}
         onBlur={() => setActive(null)}
@@ -124,7 +132,7 @@ export function SalesChart({ data }: { data: DailySales[] }) {
             <text
               key={d.date}
               x={xAt(i)}
-              y={HEIGHT - 8}
+              y={height - 8}
               textAnchor="middle"
               className="fill-muted font-mono text-[10px]"
             >

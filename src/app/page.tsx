@@ -33,7 +33,7 @@ const CONTENTS = [
     description:
       "Revenue by day, best sellers, payment mix, restock alerts — live from the API.",
     href: "/dashboard",
-    badge: "MANAGER · PIN 2026",
+    badge: "MANAGER ONLY",
   },
 ];
 
@@ -114,8 +114,9 @@ export default function LandingPage() {
             Sign in &amp; open register
           </span>
           <span className="mt-1 block text-sm text-cream/60">
-            Staff picker with a 4-digit PIN pad. Demo PINs — Anya 1234 · Bima
-            2580 · Rama 0000 · Admin 2026 (manager).
+            Staff picker with a 4-digit PIN pad — real accounts, created on the
+            Staff screen. Demo PINs — Anya Putri 1234 · Admin 2026 (manager), or
+            email admin@pos.test · Admin123!
           </span>
           <span className="mono-label mt-4 block text-cream/80 group-hover:text-cream">
             START HERE ↗
