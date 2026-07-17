@@ -362,6 +362,173 @@ export async function simulateGatewayPaid(id: string): Promise<GatewayPayment> {
   return (await response.json()).data;
 }
 
+// ─── Inventory ───────────────────────────────────────────────────────────
+
+export interface StockLevel {
+  productId: string;
+  name: string;
+  stock: number;
+}
+
+export interface OpnameVariance {
+  productId: string;
+  name: string;
+  systemStock: number;
+  counted: number;
+  difference: number;
+}
+
+export type MovementType = "sale" | "goods_in" | "adjustment" | "opname";
+
+export interface StockMovement {
+  id: number;
+  productId: string;
+  sku: string;
+  name: string;
+  type: MovementType;
+  quantity: number;
+  unitCost: number | null;
+  supplier: string | null;
+  note: string | null;
+  ref: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface MovementFilters {
+  productId?: string;
+  type?: MovementType;
+  from?: string;
+  to?: string;
+}
+
+export async function receiveGoods(payload: {
+  items: { productId: string; quantity: number; unitCost?: number }[];
+  supplier?: string;
+  note?: string;
+}): Promise<StockLevel[]> {
+  const response = await authFetch("/inventory/goods-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function applyOpname(payload: {
+  counts: { productId: string; counted: number }[];
+  note?: string;
+}): Promise<OpnameVariance[]> {
+  const response = await authFetch("/inventory/opname", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function adjustStock(payload: {
+  productId: string;
+  quantity: number;
+  reason: string;
+}): Promise<StockLevel> {
+  const response = await authFetch("/inventory/adjustment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function getMovements(
+  limit: number,
+  offset: number,
+  filters: MovementFilters = {},
+): Promise<{ rows: StockMovement[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  const response = await authFetch(`/inventory/movements?${params}`);
+  if (!response.ok) await parseError(response);
+  const body = await response.json();
+  return { rows: body.data, total: body.meta.total };
+}
+
+// ─── Pembukuan ──────────────────────────────────────────────────────────────
+
+export interface Expense {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  spentOn: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface ExpenseFilters {
+  from?: string;
+  to?: string;
+  category?: string;
+}
+
+export interface FinanceDay {
+  date: string;
+  revenue: number;
+  expenses: number;
+  net: number;
+}
+
+export interface FinanceSummary {
+  revenue: number;
+  expenses: number;
+  net: number;
+  byCategory: { category: string; amount: number }[];
+  days: FinanceDay[];
+}
+
+export async function createExpense(payload: {
+  category: string;
+  description: string;
+  amount: number;
+  spentOn: string;
+}): Promise<Expense> {
+  const response = await authFetch("/expenses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await parseError(response);
+  return (await response.json()).data;
+}
+
+export async function getExpenses(
+  limit: number,
+  offset: number,
+  filters: ExpenseFilters = {},
+): Promise<{ rows: Expense[]; total: number; amountTotal: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  const response = await authFetch(`/expenses?${params}`);
+  if (!response.ok) await parseError(response);
+  const body = await response.json();
+  return { rows: body.data, total: body.meta.total, amountTotal: body.meta.amountTotal };
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  const response = await authFetch(`/expenses/${id}`, { method: "DELETE" });
+  if (!response.ok) await parseError(response);
+}
+
+export const getFinanceSummary = (range: ReportRange) =>
+  getReport<FinanceSummary>("finance", { ...range });
+
 export async function checkout(
   payload: CheckoutPayload,
   idempotencyKey: string,

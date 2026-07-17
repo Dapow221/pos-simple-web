@@ -46,6 +46,37 @@ export function Card({ title, meta, className, children }: CardProps) {
   );
 }
 
+/** Today-only headline for the manager: omset hari ini, live from the API. */
+export function TodayStrip({ summary }: { summary: SalesSummary }) {
+  const stats = [
+    ["TRANSACTIONS", summary.transactions.toLocaleString("id-ID")],
+    ["ITEMS SOLD", summary.itemsSold.toLocaleString("id-ID")],
+    ["AVERAGE TICKET", rupiahCompact(summary.averageTicket)],
+    ["PPN COLLECTED", rupiahCompact(summary.taxTotal)],
+  ] as const;
+
+  return (
+    <section className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5 rounded-[14px] bg-ink p-5 text-cream sm:p-6">
+      <div>
+        <p className="mono-label text-cream/50">OMSET HARI INI · TODAY&apos;S TAKINGS</p>
+        <p className="mt-2 font-serif text-[32px] leading-none sm:text-[40px]" title={rupiah(summary.grossRevenue)}>
+          {rupiah(summary.grossRevenue)}
+        </p>
+      </div>
+      <dl className="flex flex-wrap gap-x-10 gap-y-4">
+        {stats.map(([label, value]) => (
+          <div key={label}>
+            <dt className="mono-label text-cream/50">{label}</dt>
+            <dd className="mt-1.5 font-mono text-lg font-medium leading-none sm:text-xl">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 export function KpiRow({ summary }: { summary: SalesSummary }) {
   const tiles = [
     {

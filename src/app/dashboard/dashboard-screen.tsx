@@ -31,6 +31,7 @@ import {
   LowStockList,
   ManagerOnlyNotice,
   PaymentMethodBars,
+  TodayStrip,
   TopProductsList,
 } from "./widgets";
 
@@ -42,6 +43,7 @@ const RANGE_PRESETS = [
 
 interface DashboardData {
   summary: SalesSummary;
+  today: SalesSummary;
   daily: DailySales[];
   topProducts: TopProduct[];
   methods: PaymentMethodStat[];
@@ -86,17 +88,18 @@ export function DashboardScreen() {
     const range = jakartaRange(days);
     Promise.all([
       getSummary(range),
+      getSummary(jakartaRange(1)),
       getSalesByDay(range),
       getTopProducts(range),
       getPaymentMethods(range),
       getLowStock(),
     ])
-      .then(([summary, daily, topProducts, methods, lowStock]) => {
+      .then(([summary, today, daily, topProducts, methods, lowStock]) => {
         if (cancelled) return;
         setSnapshot({
           stamp,
           range,
-          data: { summary, daily, topProducts, methods, lowStock },
+          data: { summary, today, daily, topProducts, methods, lowStock },
         });
       })
       .catch((cause: Error) => {
@@ -130,6 +133,22 @@ export function DashboardScreen() {
             name={user?.fullName ?? "—"}
           />
         </HeaderMeta>
+        {user?.permissions.includes("products:write") && (
+          <Link
+            href="/inventory"
+            className="hidden rounded-full border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-muted sm:px-6 md:block"
+          >
+            Stock
+          </Link>
+        )}
+        {user?.permissions.includes("finance:manage") && (
+          <Link
+            href="/finance"
+            className="hidden rounded-full border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-muted sm:px-6 md:block"
+          >
+            Books
+          </Link>
+        )}
         {user?.permissions.includes("users:manage") && (
           <Link
             href="/staff"
@@ -206,6 +225,8 @@ export function DashboardScreen() {
                   loading && "pointer-events-none opacity-60",
                 )}
               >
+                <TodayStrip summary={data.today} />
+
                 <KpiRow summary={data.summary} />
 
                 {/* No items-start here: both cards stretch to the same height,
