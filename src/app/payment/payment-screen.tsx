@@ -243,6 +243,13 @@ export function PaymentScreen() {
                       ? `Complete · give ${rupiah(change)} change`
                       : `Complete · ${rupiah(grandTotal)}`}
               </button>
+
+              <Link
+                href="/register"
+                className="mt-3 block w-full rounded-[10px] border border-line bg-white py-4 text-center text-sm font-medium transition-colors hover:border-muted"
+              >
+                Back to register
+              </Link>
             </div>
           )}
         </section>
